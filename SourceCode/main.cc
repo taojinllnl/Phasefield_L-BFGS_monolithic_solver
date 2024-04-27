@@ -16,7 +16,7 @@
  *
  * Author: Tao Jin
  *         University of Ottawa, Ottawa, Ontario, Canada
- *         Nov. 2023
+ *         April. 2024
  */
 
 /* A monolithic scheme based on the L-BFGS method to solve the phase-field crack problem
@@ -48,7 +48,7 @@
 
 #include <deal.II/base/timer.h>
 #include <deal.II/base/quadrature_point_data.h>
-
+#include <deal.II/base/parameter_handler.h>
 
 #include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/vector.h>
@@ -1167,7 +1167,7 @@ namespace PhaseField
 	  }
 
 	Assert(std::fabs(t_1 - m_parameters.m_end_time) < 1.0e-9,
-	       ExcMessage("End time in time table is inconsistent with input data in parameters.prm"))
+	       ExcMessage("End time in time table is inconsistent with input data in parameters.prm"));
 
 	Assert(time_table.size() > 0,
 	       ExcMessage("Time data file is empty."));
@@ -5153,7 +5153,7 @@ namespace PhaseField
 	m_time.increment(time_table);
       } // while(m_time.current() < m_time.end() + m_time.get_delta_t()*1.0e-6)
   }
-} // namespace LinearElastoStatic
+} // namespace PhaseField
 
 
 int main(int argc, char* argv[])
