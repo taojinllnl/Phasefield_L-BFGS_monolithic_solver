@@ -15,16 +15,17 @@ The repository contains the following content:
 ### How to compile
 The three-field finite element procedure is implemented in [deal.II](https://www.dealii.org/) (version 9.4.0), which is an open source finite element library. In order to use the code (**main.cc**) provided here, deal.II should be configured with MPI and at least with the interfaces to BLAS, LAPACK, Threading Building Blocks (TBB), and UMFPACK. For optional interfaces to other software packages, see https://www.dealii.org/developer/readme.html.
 
-Once the deal.II library is compiled, for instance, to "~/dealii-9.4.0/bin/", follow the steps listed below:
+Once the deal.II library is compiled, for instance, to "~/dealii-9.5.1/bin/", follow the steps listed below:
 1. cd SourceCode
-2. cmake -DDEAL_II_DIR=~/dealii-9.4.0/bin/  .
+2. cmake -DDEAL_II_DIR=~/dealii-9.5.1/bin/  .
 3. make debug or make release
 4. make
 
 ### How to run
-1. copy the input files contained in one of the example folders into the folder SourceCode
-2. For 2D problems: ./main 2
-3. For 3D problems: ./main 3
+1. Go into one of the examples folders.
+2. For instance a 2D test case: go into simple_shear_test/adaptive_refinement
+3. Run via ./../../SourceCode/main 2
+4. For 3D test cases, run via ./../../SourceCode/main 3
 
 ### How to cite this work:
 TBD...
