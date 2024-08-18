@@ -28,8 +28,4 @@ Once the deal.II library is compiled, for instance, to "~/dealii-9.5.1/bin/", fo
 4. For 3D test cases, run via ./../../SourceCode/main 3
 
 ### How to cite this work:
-TBD...
-
-
-
-
+Jin T, Li Z, Chen K. A novel phase-field monolithic scheme for brittle crack propagation based on the limited-memory BFGS method with adaptive mesh refinement. Int J Numer Methods Eng. 2024;e7572. doi: 10.1002/nme.7572
