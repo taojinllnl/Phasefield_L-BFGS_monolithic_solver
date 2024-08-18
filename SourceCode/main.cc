@@ -17,6 +17,11 @@
  * Author: Tao Jin
  *         University of Ottawa, Ottawa, Ontario, Canada
  *         April. 2024
+ *
+ * How to cite:
+ *         Jin T, Li Z, Chen K. A novel phase-field monolithic scheme for brittle crack
+ *         propagation based on the limited-memory BFGS method with adaptive mesh refinement.
+ *         Int J Numer Methods Eng. 2024;e7572. doi: 10.1002/nme.7572
  */
 
 /* A monolithic scheme based on the L-BFGS method to solve the phase-field crack problem
