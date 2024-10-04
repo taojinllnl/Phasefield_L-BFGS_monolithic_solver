@@ -4,8 +4,9 @@ A monolithic solver based on the limited memory BFGS method for phase-field frac
 ### Purpose 
 This repository provides the source code and the input files for the numerical examples used in the paper draft titled “A novel phase-field monolithic scheme for brittle crack propagation based on the limited-memory BFGS method with adaptive mesh refinement”. The L-BFGS monolithic solver has the following features:
 1. It uses the limited memory BFGS (L-BFGS) method to overcome the non-convexity of the total energy functional of the phase-field fracture formulation.
-2. It adopts an adaptive mesh refinement technique to reduce computational cost.
-3. It works for both 2D and 3D phase-field fracture simulations.
+2. It uses the history variable (the maximum of the positive strain energy in history) approach to enforce the phase-field irreversibility.
+3. It adopts an adaptive mesh refinement technique to reduce computational cost.
+4. It works for both 2D and 3D phase-field fracture simulations.
 
 ### Content
 The repository contains the following content:
