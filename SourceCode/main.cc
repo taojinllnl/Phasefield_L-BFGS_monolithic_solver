@@ -520,6 +520,7 @@ namespace PhaseField
       , m_time_current(0.0)
       , m_time_end(time_end)
       , m_delta_t(0.0)
+      , m_magnitude(1.0)
     {}
 
     virtual ~Time() = default;
@@ -536,21 +537,27 @@ namespace PhaseField
     {
       return m_delta_t;
     }
+    double get_magnitude() const
+    {
+      return m_magnitude;
+    }
     unsigned int get_timestep() const
     {
       return m_timestep;
     }
-    void increment(std::vector<std::array<double, 3>> time_table)
+    void increment(std::vector<std::array<double, 4>> time_table)
     {
-      double t_1, t_delta;
+      double t_1, t_delta, t_magnitude;
       for (auto & time_group : time_table)
         {
 	  t_1 = time_group[1];
 	  t_delta = time_group[2];
+	  t_magnitude = time_group[3];
 
 	  if (m_time_current < t_1 - 1.0e-6*t_delta)
 	    {
 	      m_delta_t = t_delta;
+	      m_magnitude = t_magnitude;
 	      break;
 	    }
         }
@@ -564,6 +571,7 @@ namespace PhaseField
     double       m_time_current;
     const double m_time_end;
     double m_delta_t;
+    double m_magnitude;
   };
 
   template <int dim>
@@ -1050,7 +1058,7 @@ namespace PhaseField
 			    const unsigned int total_material_regions);
 
     void read_time_data(const std::string &data_file,
-    		        std::vector<std::array<double, 3>> & time_table);
+    		        std::vector<std::array<double, 4>> & time_table);
 
     void print_conv_header_newton();
 
@@ -1160,11 +1168,11 @@ namespace PhaseField
 
   template <int dim>
   void PhaseFieldMonolithicSolve<dim>::read_time_data(const std::string &data_file,
-				                 std::vector<std::array<double, 3>> & time_table)
+				                      std::vector<std::array<double, 4>> & time_table)
   {
     std::ifstream myfile (data_file);
 
-    double t_0, t_1, delta_t;
+    double t_0, t_1, delta_t, t_magnitude;
 
     if (myfile.is_open())
       {
@@ -1172,12 +1180,13 @@ namespace PhaseField
 
 	while ( myfile >> t_0
 		       >> t_1
-		       >> delta_t)
+		       >> delta_t
+		       >> t_magnitude)
 	  {
 	    Assert( t_0 < t_1,
 		    ExcMessage("For each time pair, "
 			       "the start time should be smaller than the end time"));
-	    time_table.push_back({{t_0, t_1, delta_t}});
+	    time_table.push_back({{t_0, t_1, delta_t, t_magnitude}});
 	  }
 
 	Assert(std::fabs(t_1 - m_parameters.m_end_time) < 1.0e-9,
@@ -1198,7 +1207,8 @@ namespace PhaseField
 	m_logfile << "\t\t"
 	          << time_group[0] << ",\t"
 	          << time_group[1] << ",\t"
-		  << time_group[2] << std::endl;
+		  << time_group[2] << ",\t"
+		  << time_group[3] << std::endl;
       }
   }
 
@@ -1991,8 +2001,8 @@ namespace PhaseField
 	  {
 	    for (const auto &cell : m_triangulation.active_cell_iterators())
 	      {
-		if (    (cell->center()[0] > 0.45)
-		     && (cell->center()[1] < 0.55) )
+		if (    (cell->center()[0] > 0.475)
+		     && (cell->center()[1] < 0.525) )
 		  {
 		    material_id = cell->material_id();
 		    length_scale = m_material_data[material_id][2];
@@ -2669,7 +2679,7 @@ namespace PhaseField
 						     m_fe.component_mask(x_displacement));
 	    */
             const double time_inc = m_time.get_delta_t();
-            double disp_magnitude = 1.0;
+            double disp_magnitude = m_time.get_magnitude();
 	    VectorTools::interpolate_boundary_values(m_dof_handler,
 						     boundary_id_top_surface,
 						     Functions::ConstantFunction<dim>(
@@ -2696,7 +2706,7 @@ namespace PhaseField
 						     m_fe.component_mask(y_displacement));
 
 	    const double time_inc = m_time.get_delta_t();
-	    double disp_magnitude = 1.0;
+	    double disp_magnitude = m_time.get_magnitude();
 	    VectorTools::interpolate_boundary_values(m_dof_handler,
 						     boundary_id_top_surface,
 						     Functions::ConstantFunction<dim>(
@@ -2750,7 +2760,7 @@ namespace PhaseField
 
 	    // top-center node applied with y-displacement
 	    const double time_inc = m_time.get_delta_t();
-	    double disp_magnitude = -1.0;
+	    double disp_magnitude = m_time.get_magnitude();
 
 	    m_constraints.add_line(node_topcenter[1]);
 	    m_constraints.set_inhomogeneity(node_topcenter[1], disp_magnitude*time_inc);
@@ -2780,7 +2790,7 @@ namespace PhaseField
 
 	    const int z1_surface = 3;
 	    const double time_inc = m_time.get_delta_t();
-	    double disp_magnitude = 1.0;
+	    double disp_magnitude = m_time.get_magnitude();
 	    VectorTools::interpolate_boundary_values(m_dof_handler,
 						     z1_surface,
 						     Functions::ConstantFunction<dim>(
@@ -5024,6 +5034,10 @@ namespace PhaseField
     else
       m_logfile << "No need to calculate reaction forces." << std::endl;
 
+    if (m_parameters.m_relative_residual)
+      m_logfile << "Relative residual for convergence." << std::endl;
+    else
+      m_logfile << "Absolute residual for convergence." << std::endl;
 
     m_logfile << "Body force = (" << m_parameters.m_x_component << ", "
                                   << m_parameters.m_y_component << ", "
@@ -5042,7 +5056,7 @@ namespace PhaseField
     read_material_data(m_parameters.m_material_file_name,
     		       m_parameters.m_total_material_regions);
 
-    std::vector<std::array<double, 3>> time_table;
+    std::vector<std::array<double, 4>> time_table;
 
     read_time_data(m_parameters.m_time_file_name, time_table);
 
