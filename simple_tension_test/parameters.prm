@@ -89,6 +89,11 @@ subsection Nonlinear solver
   
   # Number of BFGS iterations allowed
   set Max iterations BFGS = 10000
+  
+  # Relative residual (yes|no)
+  # yes - relative residual
+  # no  - absolute residual
+  set Relative residual = yes
 
   # Displacement residual tolerance
   set Tolerance displacement residual       = 1.0e-9

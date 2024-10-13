@@ -368,6 +368,8 @@ namespace PhaseField
     {
       unsigned int m_max_iterations_NR;
       unsigned int m_max_iterations_BFGS;
+      bool m_relative_residual;
+
       double       m_tol_u_residual;
       double       m_tol_d_residual;
       double       m_tol_u_incr;
@@ -391,6 +393,11 @@ namespace PhaseField
                           "20",
                           Patterns::Integer(0),
                           "Number of BFGS iterations allowed");
+
+        prm.declare_entry("Relative residual",
+			  "yes",
+                          Patterns::Selection("yes|no"),
+			  "Shall we use relative residual for convergence?");
 
         prm.declare_entry("Tolerance displacement residual",
                           "1.0e-9",
@@ -421,6 +428,8 @@ namespace PhaseField
       {
         m_max_iterations_NR = prm.get_integer("Max iterations Newton-Raphson");
         m_max_iterations_BFGS = prm.get_integer("Max iterations BFGS");
+        m_relative_residual = prm.get_bool("Relative residual");
+
         m_tol_u_residual           = prm.get_double("Tolerance displacement residual");
         m_tol_d_residual           = prm.get_double("Tolerance phasefield residual");
         m_tol_u_incr               = prm.get_double("Tolerance displacement increment");
@@ -4331,10 +4340,7 @@ namespace PhaseField
         m_error_residual_norm = m_error_residual;
         // For three-point bending problem and 3D problem, we use absolute residual
         // for convergence test
-        if (   m_parameters.m_scenario != 5
-            && m_parameters.m_scenario != 6
-	    && m_parameters.m_scenario != 7
-	    && m_parameters.m_scenario != 8)
+        if (m_parameters.m_relative_residual)
           m_error_residual_norm.normalize(m_error_residual_0);
 
         if (LBFGS_iteration > 1 && m_error_update_norm.m_u <= m_parameters.m_tol_u_incr
@@ -4368,10 +4374,7 @@ namespace PhaseField
 
             m_logfile << "\t\tResidual information of convergence:" << std::endl;
 
-            if (   m_parameters.m_scenario != 5
-        	&& m_parameters.m_scenario != 6
-		&& m_parameters.m_scenario != 7
-		&& m_parameters.m_scenario != 8)
+            if (m_parameters.m_relative_residual)
               {
 		m_logfile << "\t\t\tRelative residual of disp. equation: "
 			  << m_error_residual_norm.m_u << std::endl;
@@ -4486,10 +4489,7 @@ namespace PhaseField
         m_error_update_norm = m_error_update;
         // For three-point bending problem and the sphere inclusion problem,
         // we use absolute residual for convergence test
-        if (   m_parameters.m_scenario != 5
-            && m_parameters.m_scenario != 6
-	    && m_parameters.m_scenario != 7
-	    && m_parameters.m_scenario != 8)
+        if (m_parameters.m_relative_residual)
           m_error_update_norm.normalize(m_error_update_0);
 
         solution_delta += LBFGS_update;
