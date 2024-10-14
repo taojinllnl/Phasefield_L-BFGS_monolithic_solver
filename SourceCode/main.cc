@@ -970,6 +970,7 @@ namespace PhaseField
     void make_grid_case_6();
     void make_grid_case_7();
     void make_grid_case_8();
+    void make_grid_case_9();
 
     void setup_system();
 
@@ -1670,6 +1671,8 @@ namespace PhaseField
       make_grid_case_7();
     else if (m_parameters.m_scenario == 8)
       make_grid_case_8();
+    else if (m_parameters.m_scenario == 9)
+      make_grid_case_9();
     else
       Assert(false, ExcMessage("The scenario has not been implemented!"));
 
@@ -2554,6 +2557,94 @@ namespace PhaseField
 
 
   template <int dim>
+  void PhaseFieldMonolithicSolve<dim>::make_grid_case_9()
+  {
+    AssertThrow(dim==2, ExcMessage("The dimension has to be 2D!"));
+
+    for (unsigned int i = 0; i < 80; ++i)
+      m_logfile << "*";
+    m_logfile << std::endl;
+    m_logfile << "\t\t\t\tL-shape bending (2D structured)" << std::endl;
+    for (unsigned int i = 0; i < 80; ++i)
+      m_logfile << "*";
+    m_logfile << std::endl;
+
+    GridIn<dim> gridin;
+    gridin.attach_triangulation(m_triangulation);
+    std::ifstream f("L-Shape.msh");
+    gridin.read_msh(f);
+
+    for (const auto &cell : m_triangulation.active_cell_iterators())
+      for (const auto &face : cell->face_iterators())
+	{
+	  if (face->at_boundary() == true)
+	    {
+	      if (std::fabs(face->center()[1] - 0.0 ) < 1.0e-9 )
+		face->set_boundary_id(0);
+	      else
+	        face->set_boundary_id(1);
+	    }
+	}
+
+    m_triangulation.refine_global(m_parameters.m_global_refine_times);
+
+    if (m_parameters.m_refinement_strategy == "pre-refine")
+      {
+	unsigned int material_id;
+	double length_scale;
+	for (unsigned int i = 0; i < m_parameters.m_local_prerefine_times; i++)
+	  {
+	    for (const auto &cell : m_triangulation.active_cell_iterators())
+	      {
+		if (    (cell->center()[1] > 242.0)
+		     && (cell->center()[1] < 312.5)
+		     && (cell->center()[0] < 258.0) )
+		  {
+		    material_id = cell->material_id();
+		    length_scale = m_material_data[material_id][2];
+		    if (  std::sqrt(cell->measure())
+			> length_scale * m_parameters.m_allowed_max_h_l_ratio )
+		      cell->set_refine_flag();
+		  }
+	      }
+	    m_triangulation.execute_coarsening_and_refinement();
+	  }
+      }
+    else if (m_parameters.m_refinement_strategy == "adaptive-refine")
+      {
+	unsigned int material_id;
+	double length_scale;
+	bool initiation_point_refine_unfinished = true;
+	while (initiation_point_refine_unfinished)
+	  {
+	    initiation_point_refine_unfinished = false;
+	    for (const auto &cell : m_triangulation.active_cell_iterators())
+	      {
+		if (             (cell->center()[0] - 250) < 0.0
+		     &&          (cell->center()[0] - 240) > 0.0
+		     && std::fabs(cell->center()[1] - 250) < 10.0 )
+		  {
+		    material_id = cell->material_id();
+		    length_scale = m_material_data[material_id][2];
+		    if (  std::sqrt(cell->measure())
+			> length_scale * m_parameters.m_allowed_max_h_l_ratio )
+		      {
+		        cell->set_refine_flag();
+		        initiation_point_refine_unfinished = true;
+		      }
+		  }
+	      }
+	    m_triangulation.execute_coarsening_and_refinement();
+	  }
+      }
+    else
+      {
+	AssertThrow(false,
+	            ExcMessage("Selected mesh refinement strategy not implemented!"));
+      }
+  }
+
+  template <int dim>
   void PhaseFieldMonolithicSolve<dim>::setup_system()
   {
     m_timer.enter_subsection("Setup system");
@@ -2797,6 +2888,35 @@ namespace PhaseField
 						       disp_magnitude*time_inc, m_n_components),
 						     m_constraints,
 						     m_fe.component_mask(z_displacement));
+	  }
+	else if (m_parameters.m_scenario == 9)
+	  {
+	    // Dirichlet B,C. bottom surface
+	    const int boundary_id_bottom_surface = 0;
+	    VectorTools::interpolate_boundary_values(m_dof_handler,
+						     boundary_id_bottom_surface,
+						     Functions::ZeroFunction<dim>(m_n_components),
+						     m_constraints,
+						     m_fe.component_mask(displacements));
+
+	    typename Triangulation<dim>::active_vertex_iterator vertex_itr;
+	    vertex_itr = m_triangulation.begin_active_vertex();
+	    std::vector<types::global_dof_index> node_disp_control(m_fe.dofs_per_vertex);
+
+	    for (; vertex_itr != m_triangulation.end_vertex(); ++vertex_itr)
+	      {
+		if (   (std::fabs(vertex_itr->vertex()[0] - 470.0) < 1.0e-9)
+		    && (std::fabs(vertex_itr->vertex()[1] - 250.0) < 1.0e-9) )
+		  {
+		    node_disp_control = usr_utilities::get_vertex_dofs(vertex_itr, m_dof_handler);
+	            // node applied with y-displacement
+		    const double time_inc = m_time.get_delta_t();
+		    double disp_magnitude = m_time.get_magnitude();
+
+		    m_constraints.add_line(node_disp_control[1]);
+		    m_constraints.set_inhomogeneity(node_disp_control[1], disp_magnitude*time_inc);
+		  }
+	      }
 	  }
 	else
 	  Assert(false, ExcMessage("The scenario has not been implemented!"));
