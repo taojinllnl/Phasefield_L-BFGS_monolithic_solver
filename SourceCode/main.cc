@@ -971,6 +971,7 @@ namespace PhaseField
     void make_grid_case_7();
     void make_grid_case_8();
     void make_grid_case_9();
+    void make_grid_case_11();
 
     void setup_system();
 
@@ -1673,6 +1674,8 @@ namespace PhaseField
       make_grid_case_8();
     else if (m_parameters.m_scenario == 9)
       make_grid_case_9();
+    else if (m_parameters.m_scenario == 11)
+      make_grid_case_11();
     else
       Assert(false, ExcMessage("The scenario has not been implemented!"));
 
@@ -2645,6 +2648,142 @@ namespace PhaseField
   }
 
   template <int dim>
+  void PhaseFieldMonolithicSolve<dim>::make_grid_case_11()
+  {
+    AssertThrow(dim==3, ExcMessage("The dimension has to be 3D!"));
+
+    for (unsigned int i = 0; i < 80; ++i)
+      m_logfile << "*";
+    m_logfile << std::endl;
+    m_logfile << "\t\t\t\tBrokenshire torsion (3D structured)" << std::endl;
+    for (unsigned int i = 0; i < 80; ++i)
+      m_logfile << "*";
+    m_logfile << std::endl;
+
+    Triangulation<2> triangulation_2d;
+
+    double const length = 200.0;
+    double const width = 50.0;
+    double const height = 50.0;
+    double const delta_L = 25.0;
+    double const tan_theta = delta_L / (0.5*width);
+
+    std::vector<unsigned int> repetitions(2, 1);
+    repetitions[0] = 20;
+    repetitions[1] = 5;
+
+    Point<2> point1(0.0, 0.0);
+    Point<2> point2(length, width);
+
+    GridGenerator::subdivided_hyper_rectangle(triangulation_2d,
+					      repetitions,
+					      point1,
+					      point2 );
+
+    typename Triangulation<2>::vertex_iterator vertex_ptr;
+    vertex_ptr = triangulation_2d.begin_active_vertex();
+    while (vertex_ptr != triangulation_2d.end_vertex())
+      {
+	Point<2> & vertex_point = vertex_ptr->vertex();
+
+	const double delta_x = (vertex_point(1) - 0.5*width) * tan_theta;
+
+	if (std::fabs(vertex_point(0) - 0.5*length) < 1.0e-6)
+	  {
+	    vertex_point(0) += delta_x;
+	  }
+	else if (std::fabs(vertex_point(0) + length/repetitions[0] - 0.5*length) < 1.0e-6)
+	  {
+	    vertex_point(0) += (delta_x + length/repetitions[0]*0.5);
+	  }
+	else if (std::fabs(vertex_point(0) - length/repetitions[0] - 0.5*length) < 1.0e-6)
+	  {
+	    vertex_point(0) += (delta_x - length/repetitions[0]*0.5);
+	  }
+	else if (vertex_point(0) < 0.5*length - length/repetitions[0] - 1.0e-6)
+	  {
+	    vertex_point(0) += (delta_x + length/repetitions[0]*0.5) * vertex_point(0)/(0.5*length - length/repetitions[0]);
+	  }
+	else if (vertex_point(0) > 0.5*length + length/repetitions[0] + 1.0e-6)
+	  {
+	    vertex_point(0) += (delta_x - length/repetitions[0]*0.5) * (length - vertex_point(0))/(0.5*length - length/repetitions[0]);
+	  }
+
+	++vertex_ptr;
+      }
+
+    Triangulation<dim> tmp_triangulation;
+    const unsigned int n_layer = repetitions[1] + 1;
+    GridGenerator::extrude_triangulation(triangulation_2d, n_layer, height, tmp_triangulation);
+
+    tmp_triangulation.refine_global(m_parameters.m_global_refine_times);
+
+    std::set<typename Triangulation< dim >::active_cell_iterator >
+      cells_to_remove;
+
+    for (const auto &cell : tmp_triangulation.active_cell_iterators())
+      {
+	if (    (std::fabs(cell->center()[0] - (cell->center()[1] - 0.5*width)*tan_theta - 0.5*length) < 2.5)
+	     && cell->center()[2] > 0.5* height  )
+	  {
+	    cells_to_remove.insert(cell);
+	  }
+      }
+
+    GridGenerator::create_triangulation_with_removed_cells(tmp_triangulation,
+							   cells_to_remove,
+							   m_triangulation);
+
+    if (m_parameters.m_refinement_strategy == "adaptive-refine")
+      {
+	unsigned int material_id;
+	double length_scale;
+	bool initiation_point_refine_unfinished = true;
+	while (initiation_point_refine_unfinished)
+	  {
+	    initiation_point_refine_unfinished = false;
+	    for (const auto &cell : m_triangulation.active_cell_iterators())
+	      {
+		if (  (std::fabs(cell->center()[0] - (cell->center()[1] - 0.5*width)*tan_theta - 0.5*length) < 5.0)
+		    && cell->center()[2] <= 0.5*height
+		    && cell->center()[2] > 0.5*height - 5.0 )
+		  {
+		    material_id = cell->material_id();
+		    length_scale = m_material_data[material_id][2];
+		    if (  std::cbrt(cell->measure())
+			> length_scale * m_parameters.m_allowed_max_h_l_ratio )
+		      {
+			cell->set_refine_flag();
+			initiation_point_refine_unfinished = true;
+		      }
+		  }
+	      }
+	    m_triangulation.execute_coarsening_and_refinement();
+	  }
+      }
+    else
+      {
+	AssertThrow(false,
+		    ExcMessage("Selected mesh refinement strategy not implemented!"));
+      }
+
+
+    for (const auto &cell : m_triangulation.active_cell_iterators())
+      for (const auto &face : cell->face_iterators())
+	{
+	  if (face->at_boundary() == true)
+	    {
+	      if (std::fabs(face->center()[0] - length) < 1.0e-6 )
+		face->set_boundary_id(0);
+	      else if (std::fabs(face->center()[0] - 0.0) < 1.0e-6 )
+		face->set_boundary_id(1);
+	      else
+		face->set_boundary_id(2);
+	    }
+	}
+  }
+
+  template <int dim>
   void PhaseFieldMonolithicSolve<dim>::setup_system()
   {
     m_timer.enter_subsection("Setup system");
@@ -2915,6 +3054,63 @@ namespace PhaseField
 
 		    m_constraints.add_line(node_disp_control[1]);
 		    m_constraints.set_inhomogeneity(node_disp_control[1], disp_magnitude*time_inc);
+		  }
+	      }
+	  }
+	else if (m_parameters.m_scenario == 11)
+	  {
+	    // Dirichlet B,C. right surface
+	    const int boundary_id_right_surface = 0;
+	    VectorTools::interpolate_boundary_values(m_dof_handler,
+						     boundary_id_right_surface,
+						     Functions::ZeroFunction<dim>(m_n_components),
+						     m_constraints,
+						     m_fe.component_mask(displacements));
+
+	    // Dirichlet B,C. left surface
+	    const int boundary_id_left_surface = 1;
+	    VectorTools::interpolate_boundary_values(m_dof_handler,
+						     boundary_id_left_surface,
+						     Functions::ZeroFunction<dim>(m_n_components),
+						     m_constraints,
+						     m_fe.component_mask(x_displacement));
+
+	    typename Triangulation<dim>::active_vertex_iterator vertex_itr;
+	    vertex_itr = m_triangulation.begin_active_vertex();
+	    std::vector<types::global_dof_index> node_rotate(m_fe.dofs_per_vertex);
+	    double node_dist = 0.0;
+	    double disp_mag = 0.0;
+	    double angle_theta = 0.0;
+	    double disp_y = 0;
+	    double disp_z = 0;
+
+	    for (; vertex_itr != m_triangulation.end_vertex(); ++vertex_itr)
+	      {
+		if (std::fabs(vertex_itr->vertex()[0] - 0.0) < 1.0e-9)
+		  {
+		    node_rotate = usr_utilities::get_vertex_dofs(vertex_itr, m_dof_handler);
+		    node_dist = std::sqrt(  vertex_itr->vertex()[1] * vertex_itr->vertex()[1]
+					  + vertex_itr->vertex()[2] * vertex_itr->vertex()[2]);
+
+		    angle_theta = m_time.get_delta_t() * m_time.get_magnitude();
+		    disp_mag = node_dist * std::tan(angle_theta);
+
+		    if (node_dist > 0)
+		      {
+			disp_y = vertex_itr->vertex()[2]/node_dist * disp_mag;
+			disp_z = -vertex_itr->vertex()[1]/node_dist * disp_mag;
+		      }
+		    else
+		      {
+			disp_y = 0.0;
+			disp_z = 0.0;
+		      }
+
+		    m_constraints.add_line(node_rotate[1]);
+		    m_constraints.set_inhomogeneity(node_rotate[1], disp_y);
+
+		    m_constraints.add_line(node_rotate[2]);
+		    m_constraints.set_inhomogeneity(node_rotate[2], disp_z);
 		  }
 	      }
 	  }
