@@ -1,0 +1,8 @@
+Warning:
+The two examples of 3D inclusion tests included in this folder ONLY work for the deal.ii version 9.5.0 or older.
+For the newer deal.ii (for example, the developed branch), somehow, the merge_triangulation function could no longer merge different parts of the mesh correctly. See the following code:
+    GridGenerator::merge_triangulations({&tria_inner, &tria_outer,
+                                         &cube1, &cube2, &cube3}, tmp_triangulation);
+
+As a result, there is a displacement discontinuity at the beginning of the simulation.
+
