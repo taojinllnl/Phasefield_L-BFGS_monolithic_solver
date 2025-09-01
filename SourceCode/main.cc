@@ -151,6 +151,7 @@ namespace PhaseField
       std::string m_logfile_name;
       bool m_output_iteration_history;
       std::string m_type_nonlinear_solver;
+      std::string m_type_line_search;
       std::string m_type_linear_solver;
       std::string m_refinement_strategy;
       unsigned int m_LBFGS_m;
@@ -191,6 +192,12 @@ namespace PhaseField
                           "Newton",
                           Patterns::Selection("Newton|BFGS|LBFGS"),
                           "Type of solver used to solve the nonlinear system");
+
+        prm.declare_entry("Line search type",
+                          "GradientBased",
+                          Patterns::Selection("GradientBased|StrongWolfe"),
+                          "Type of line search method, the gradient-based method "
+                          "should be preferred since it is generally faster");
 
         prm.declare_entry("Linear solver type",
                           "Direct",
@@ -265,6 +272,7 @@ namespace PhaseField
         m_logfile_name = prm.get("Log file name");
         m_output_iteration_history = prm.get_bool("Output iteration history");
         m_type_nonlinear_solver = prm.get("Nonlinear solver type");
+        m_type_line_search = prm.get("Line search type");
         m_type_linear_solver = prm.get("Linear solver type");
         m_refinement_strategy = prm.get("Mesh refinement strategy");
         m_LBFGS_m = prm.get_integer("LBFGS m");
@@ -1015,6 +1023,9 @@ namespace PhaseField
 				             const double phi_0_prime,
 				             const BlockVector<double> & BFGS_p_vector,
 				             const BlockVector<double> & solution_delta);
+
+    double line_search_stepsize_gradient_based(const BlockVector<double> & BFGS_p_vector,
+					       const BlockVector<double> & solution_delta);
 
     double line_search_zoom_strong_wolfe(double phi_low, double phi_low_prime, double alpha_low,
 					 double phi_high, double phi_high_prime, double alpha_high,
@@ -3889,6 +3900,70 @@ namespace PhaseField
   }
 
   template <int dim>
+  double PhaseFieldMonolithicSolve<dim>::line_search_stepsize_gradient_based(const BlockVector<double> & BFGS_p_vector,
+				                                             const BlockVector<double> & solution_delta)
+  {
+    BlockVector<double> g_old(m_system_rhs);
+
+    // BFGS_p_vector is the search direction
+    BlockVector<double> solution_delta_trial(solution_delta);
+    // take a full step size 1.0
+    solution_delta_trial.add(1.0, BFGS_p_vector);
+
+    update_qph_incremental(solution_delta_trial, m_solution, false);
+
+    BlockVector<double> g_new(m_dofs_per_block);
+    assemble_system_rhs_BFGS_parallel(m_solution, g_new);
+
+    BlockVector<double> y_old(m_dofs_per_block);
+
+    y_old = g_new - g_old;
+
+    double alpha = 1.0;
+
+    double alpha_old = 0.0;
+
+    double delta_alpha_old = alpha - alpha_old;
+
+    double delta_alpha_new;
+
+    unsigned int ls_max = 10;
+
+    for (unsigned int i = 1; i <= ls_max; ++i)
+      {
+	delta_alpha_new = -delta_alpha_old
+	                * (g_new * BFGS_p_vector)/(y_old * BFGS_p_vector);
+	alpha += delta_alpha_new;
+
+	if (std::fabs(delta_alpha_new) < 1.0e-5)
+	  break;
+
+        if (i == ls_max)
+          {
+            alpha = 1.0;
+            break;
+          }
+
+        g_old = g_new;
+
+        // BFGS_p_vector is the search direction
+        solution_delta_trial = solution_delta;
+        solution_delta_trial.add(alpha, BFGS_p_vector);
+        update_qph_incremental(solution_delta_trial, m_solution, false);
+        assemble_system_rhs_BFGS_parallel(m_solution, g_new);
+
+        y_old = g_new - g_old;
+
+        delta_alpha_old = delta_alpha_new;
+      }
+
+    if (alpha < 1.0e-3)
+      alpha = 1.0;
+
+    return alpha;
+  }
+
+  template <int dim>
   double PhaseFieldMonolithicSolve<dim>::line_search_stepsize_strong_wolfe(const double phi_0,
 				                                           const double phi_0_prime,
 				                                           const BlockVector<double> & BFGS_p_vector,
@@ -4797,13 +4872,26 @@ namespace PhaseField
         m_constraints.distribute(LBFGS_r_vector);
 
         // We need a line search algorithm to decide line_search_parameter
-        const double phi_0 = calculate_energy_functional();
-        const double phi_0_prime = m_system_rhs * LBFGS_r_vector;
+        if(m_parameters.m_type_line_search == "StrongWolfe")
+          {
+	    const double phi_0 = calculate_energy_functional();
+	    const double phi_0_prime = m_system_rhs * LBFGS_r_vector;
 
-        line_search_parameter = line_search_stepsize_strong_wolfe(phi_0,
-						                  phi_0_prime,
-								  LBFGS_r_vector,
-						                  solution_delta);
+	    line_search_parameter = line_search_stepsize_strong_wolfe(phi_0,
+								      phi_0_prime,
+								      LBFGS_r_vector,
+								      solution_delta);
+          }
+        else if(m_parameters.m_type_line_search == "GradientBased")
+          {
+	    // LBFGS_r_vector is the search direction
+	    line_search_parameter = line_search_stepsize_gradient_based(LBFGS_r_vector,
+									solution_delta);
+          }
+        else
+          {
+            Assert(false, ExcMessage("An unknown line search method is called!"));
+          }
 
         LBFGS_r_vector *= line_search_parameter;
         LBFGS_update = LBFGS_r_vector;
@@ -4830,14 +4918,24 @@ namespace PhaseField
 
         LBFGS_s_vector = LBFGS_update;
 
-        if (LBFGS_iteration > LBFGS_m)
-          LBFGS_vector_list.pop_back();
+        const double g_norm = m_system_rhs.l2_norm();
 
-        rho = 1.0 / (LBFGS_y_vector * LBFGS_s_vector);
+        const double yxs = LBFGS_y_vector * LBFGS_s_vector;
 
-        LBFGS_vector_list.push_front(std::make_pair(std::make_pair(LBFGS_s_vector,
-								   LBFGS_y_vector),
-						    rho));
+        const double sxs = LBFGS_s_vector * LBFGS_s_vector;
+
+        if (yxs/sxs >= 1.0e-6 * g_norm)
+          {
+	    if (LBFGS_iteration > LBFGS_m)
+	      LBFGS_vector_list.pop_back();
+
+	    rho = 1.0 / yxs;
+
+	    LBFGS_vector_list.push_front(std::make_pair(std::make_pair(LBFGS_s_vector,
+								       LBFGS_y_vector),
+							rho));
+          }
+
         if (m_parameters.m_output_iteration_history)
           {
 	    const double energy_functional = calculate_energy_functional();
@@ -5331,6 +5429,7 @@ namespace PhaseField
     m_logfile << "Write iteration history to log file? = " << std::boolalpha
 	      << m_parameters.m_output_iteration_history << std::endl;
     m_logfile << "Nonlinear solver type = " << m_parameters.m_type_nonlinear_solver << std::endl;
+    m_logfile << "Line search type = " << m_parameters.m_type_line_search << std::endl;
     m_logfile << "Linear solver type = " << m_parameters.m_type_linear_solver << std::endl;
     m_logfile << "Mesh refinement strategy = " << m_parameters.m_refinement_strategy << std::endl;
     m_logfile << "L-BFGS_m = " << m_parameters.m_LBFGS_m << std::endl;

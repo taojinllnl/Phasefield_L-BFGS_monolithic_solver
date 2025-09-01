@@ -20,6 +20,9 @@ subsection Scenario
   
   # Nonlinear solver type (Newton or BFGS or LBFGS)
   set Nonlinear solver type = LBFGS
+  
+  # Line search method type (GradientBased or StrongWolfe)
+  set Line search type = GradientBased  
 
   # Linear solver type for B0 (Direct or CG)
   set Linear solver type = Direct
