@@ -26,7 +26,7 @@ Once the deal.II library is compiled, for instance, to "~/dealii-9.5.1/bin/", fo
 The code uses the `SolutionTransfer` class during the adaptive mesh refinement technique. The member function `interpolate()` of the `SolutionTransfer` class has different interfaces between the develop ("master") branch and older versions of deal.ii (for instance, 9.4.0 and 9.5.1). If you use the develop branch, you should use the following interface: `interpolate(std::vector< VectorType > & all_out)`. If you use an older version of deal.ii, you should use the following interface: `interpolate(const std::vector< VectorType > & all_in, std::vector< VectorType > & all_out )`. Please look at the interfaces of the member function `interpolate()` in the `SolutionTransfer` class in the specific version of deal.ii used by you.
 
 ### Latest update:
-1. Add a new gradient-based line search method. Comparing with the previously implemented Strong Wolfe line search, the new line search method could reduce the wall-clock time by 30 to 50 percent.
+1. (Sept. 1st, 2025) Add a new gradient-based line search method. Comparing with the previously implemented Strong Wolfe line search, the new line search method could reduce the wall-clock time by 30 to 50 percent.
 
 ### How to run
 1. Go into one of the examples folders.
