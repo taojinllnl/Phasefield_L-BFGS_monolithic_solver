@@ -72,11 +72,11 @@ The classical BFGS method (a type of quasi-Newton method) involves the following
 **The problem of this update in the context of finite element simulations is that the second term and the third term both generate a fully dense matrix of n by n needs to be stored, where n represents the number of degrees of freedom.** The above Hessian matrix update is too restrictive even for a mid-size finite element problem due to the required memory for the storage of the fully dense matrix. This limitation motivated this work to introduce the limited-memory feature for the phase-field crack simulations. The limited-memory BFGS method implemented in this work follows the algorithm represented in Chapter 7.2 (page 176) of the following textbook by *Nocedal J, Wright SJ. Numerical optimization (2nd edition). Springer New York, NY, 2006*.
 
 ### How to compile
-The L-BFGS finite element procedure is implemented in [deal.II](https://www.dealii.org/) (originally with version 9.4.0 and also works for 9.5.1), which is an open source finite element library. In order to use the code (**main.cc**) provided here, deal.II should be configured with MPI and at least with the interfaces to BLAS, LAPACK, Threading Building Blocks (TBB), and UMFPACK. For optional interfaces to other software packages, see https://www.dealii.org/developer/readme.html.
+The L-BFGS finite element procedure is implemented in [deal.II](https://www.dealii.org/) (originally with version 9.4.0 and also tested for the developed branch as Sept. 10th, 2025), which is an open source finite element library. In order to use the code (**main.cc**) provided here, deal.II should be configured with MPI and at least with the interfaces to BLAS, LAPACK, Threading Building Blocks (TBB), and UMFPACK. For optional interfaces to other software packages, see https://www.dealii.org/developer/readme.html.
 
-Once the deal.II library is compiled, for instance, to "~/dealii-9.5.1/bin/", follow the steps listed below:
+Once the deal.II library is compiled, for instance, to "~/dealii-dev/bin/", follow the steps listed below:
 1. cd SourceCode
-2. cmake -DDEAL_II_DIR=~/dealii-9.5.1/bin/  .
+2. cmake -DDEAL_II_DIR=~/dealii-dev/bin/  .
 3. make debug or make release
 4. make
 
