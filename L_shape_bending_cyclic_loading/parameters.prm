@@ -18,21 +18,27 @@ subsection Scenario
   
   # Shall we write the iteration history to the log file? (yes or no)
   set Output iteration history = yes
-  
+
+  # Phase-field model type (AT1 or AT2 or PFCZM)
+  set Phase-field model type = PFCZM
+
+  # If it is 2D case, is it plane stress? (yes or no)
+  set Plane stress = yes
+
   # Nonlinear solver type (Newton or BFGS or LBFGS)
   set Nonlinear solver type = LBFGS
-  
+
   # Line search method type (GradientBased or StrongWolfe)
-  set Line search type = GradientBased  
+  set Line search type = GradientBased
 
   # Linear solver type for B0 (Direct or CG)
-  set Linear solver type = Direct
+  set Linear solver type = CG
   
   # Mesh refinement strategy (pre-refine or adaptive-refine)
   set Mesh refinement strategy = pre-refine
   
   # Number of vectors used in LBFGS
-  set LBFGS m = 20
+  set LBFGS m = 40
 
   # Global refinement times across the entire domain
   set Global refinement times = 0
@@ -54,7 +60,7 @@ subsection Scenario
   
   # Allowed maximum ratio between mesh size h and phasefield length scale l
   # insdie the crack zone (nodal phasefield value larger than threshold)
-  set Allowed max hl ratio = 0.5
+  set Allowed max hl ratio = 0.2
   
   # Total number of material regions
   set Material regions = 1

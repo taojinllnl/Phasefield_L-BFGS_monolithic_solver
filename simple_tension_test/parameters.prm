@@ -18,6 +18,9 @@ subsection Scenario
   # Shall we write the iteration history to the log file? (yes or no)
   set Output iteration history = yes
 
+  # If it is 2D case, is it plane stress? (yes or no)
+  set Plane stress = yes
+
   # Phase-field model type (AT1 or AT2 or PFCZM)
   set Phase-field model type = PFCZM
   
