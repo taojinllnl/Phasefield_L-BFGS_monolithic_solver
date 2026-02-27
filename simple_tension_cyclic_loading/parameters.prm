@@ -17,27 +17,30 @@ subsection Scenario
   
   # Shall we write the iteration history to the log file? (yes or no)
   set Output iteration history = yes
+
+  # Phase-field model type (AT1 or AT2 or PFCZM)
+  set Phase-field model type = PFCZM
   
   # Nonlinear solver type (Newton or BFGS or LBFGS)
   set Nonlinear solver type = LBFGS
 
-  # Line search method type (GradientBased or StrongWolfe)
+  # Line search strategy (GradientBased or StrongWolfe)
   set Line search type = GradientBased
 
   # Linear solver type for B0 (Direct or CG)
-  set Linear solver type = Direct
+  set Linear solver type = CG
   
   # Mesh refinement strategy (pre-refine or adaptive-refine)
   set Mesh refinement strategy = pre-refine
   
   # Number of vectors used in LBFGS
-  set LBFGS m = 20
+  set LBFGS m = 40
 
   # Global refinement times across the entire domain
   set Global refinement times = 0
   
   # Local pre-refinement times along the crack path that is known a priori
-  set Local prerefinement times = 4
+  set Local prerefinement times = 10
   
   # Maximum number of adaptive mesh refinement allowed in each step
   # A large number means that we don't terminate adaptive refinement
@@ -53,7 +56,7 @@ subsection Scenario
   
   # Allowed maximum ratio between mesh size h and phasefield length scale l
   # insdie the crack zone (nodal phasefield value larger than threshold)
-  set Allowed max hl ratio = 0.5
+  set Allowed max hl ratio = 0.2
   
   # Total number of material regions
   set Material regions = 1
@@ -92,23 +95,23 @@ subsection Nonlinear solver
   
   # Number of BFGS iterations allowed
   set Max iterations BFGS = 10000
-
+  
   # Relative residual (yes|no)
   # yes - relative residual
   # no  - absolute residual
   set Relative residual = no
 
   # Displacement residual tolerance
-  set Tolerance displacement residual       = 1.0e-6
+  set Tolerance displacement residual       = 1.0e-9
 
   # Phasefield residual tolerance
-  set Tolerance phasefield residual         = 1.0e-6
+  set Tolerance phasefield residual         = 1.0e-9
   
   # Displacement increment tolerance
-  set Tolerance displacement increment      = 1.0e-6
+  set Tolerance displacement increment      = 1.0e-9
   
   # Phasefield increment tolerance
-  set Tolerance phasefield increment        = 1.0e-6
+  set Tolerance phasefield increment        = 1.0e-9
 end
 
 subsection Time
