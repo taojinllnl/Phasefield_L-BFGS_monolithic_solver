@@ -14,9 +14,10 @@ The repository contains the following content:
 2. the input files for several 2D and 3D phase-field fracture simulations included in the aforementioned manuscript.
 
 ### Latest update:
-1. (Nov. 15th, 2025) During the adaptive mesh refinement, project the history variable (maximum positive strain energy) field from the old mesh to the newly refined mesh. This projection can prevent damage healing during the adaptive mesh refinement.
-2. (Sept. 10th, 2025) Add a compiler macro so that the code works for the older version of deal.ii due to the interface change of the function `interpolate()` in the `SolutionTransfer` class.
-3. (Sept. 1st, 2025) Add a new gradient-based line search method. Comparing with the previously implemented Strong Wolfe line search, the new line search method could reduce the wall-clock time by 30 to 50 percent.
+1. (Feb. 26th, 2026) Add an input entry in the `parameters.prm` to differentiate between plane-stress and plane-strain for 2D problems. Add an input entry in the `parameters.prm` to choose among various phase-field models such as AT-2 (default), AT-1, and phase-field cohesive zone model (PFCZM). Note that for AT-1 model and PFCZM, extra material parameters need to be provided in the `materialDataFile`.
+2. (Nov. 15th, 2025) During the adaptive mesh refinement, project the history variable (maximum positive strain energy) field from the old mesh to the newly refined mesh. This projection can prevent damage healing during the adaptive mesh refinement.
+3. (Sept. 10th, 2025) Add a compiler macro so that the code works for the older version of deal.ii due to the interface change of the function `interpolate()` in the `SolutionTransfer` class.
+4. (Sept. 1st, 2025) Add a new gradient-based line search method. Comparing with the previously implemented Strong Wolfe line search, the new line search method could reduce the wall-clock time by 30 to 50 percent.
 
 ### Representative results
 A series of widely adopted phase-field crack benchmark problems are included in this code. Here are some examples:
