@@ -6102,18 +6102,24 @@ namespace PhaseField
     m_logfile << "Line search type = " << m_parameters.m_type_line_search << std::endl;
     m_logfile << "Linear solver type = " << m_parameters.m_type_linear_solver << std::endl;
     m_logfile << "Mesh refinement strategy = " << m_parameters.m_refinement_strategy << std::endl;
+
+    if (m_parameters.m_refinement_strategy == "adaptive-refine")
+      {
+	m_logfile << "Maximum adaptive refinement times allowed in each step = "
+		  << m_parameters.m_max_adaptive_refine_times << std::endl;
+	m_logfile << "Maximum allowed cell refinement level = "
+		  << m_parameters.m_max_allowed_refinement_level << std::endl;
+	m_logfile << "Phasefield-based refinement threshold value = "
+		  << m_parameters.m_phasefield_refine_threshold << std::endl;
+      }
+
     m_logfile << "L-BFGS_m = " << m_parameters.m_LBFGS_m << std::endl;
     m_logfile << "Global refinement times = " << m_parameters.m_global_refine_times << std::endl;
     m_logfile << "Local prerefinement times = " <<m_parameters. m_local_prerefine_times << std::endl;
-    m_logfile << "Maximum adaptive refinement times allowed in each step = "
-	      << m_parameters.m_max_adaptive_refine_times << std::endl;
-    m_logfile << "Maximum allowed cell refinement level = "
-    	      << m_parameters.m_max_allowed_refinement_level << std::endl;
-    m_logfile << "Phasefield-based refinement threshold value = "
-	      << m_parameters.m_phasefield_refine_threshold << std::endl;
+
     m_logfile << "Allowed maximum h/l ratio = " << m_parameters.m_allowed_max_h_l_ratio << std::endl;
-    m_logfile << "total number of material types = " << m_parameters.m_total_material_regions << std::endl;
-    m_logfile << "material data file name = " << m_parameters.m_material_file_name << std::endl;
+    m_logfile << "Total number of material types = " << m_parameters.m_total_material_regions << std::endl;
+    m_logfile << "Material data file name = " << m_parameters.m_material_file_name << std::endl;
     if (m_parameters.m_reaction_force_face_id >= 0)
       m_logfile << "Calculate reaction forces on Face ID = " << m_parameters.m_reaction_force_face_id << std::endl;
     else
