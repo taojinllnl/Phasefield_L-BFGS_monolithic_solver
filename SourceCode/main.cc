@@ -6105,11 +6105,11 @@ namespace PhaseField
 
     if (m_parameters.m_refinement_strategy == "adaptive-refine")
       {
-	m_logfile << "Maximum adaptive refinement times allowed in each step = "
+	m_logfile << "\tMaximum adaptive refinement times allowed in each step = "
 		  << m_parameters.m_max_adaptive_refine_times << std::endl;
-	m_logfile << "Maximum allowed cell refinement level = "
+	m_logfile << "\tMaximum allowed cell refinement level = "
 		  << m_parameters.m_max_allowed_refinement_level << std::endl;
-	m_logfile << "Phasefield-based refinement threshold value = "
+	m_logfile << "\tPhasefield-based refinement threshold value = "
 		  << m_parameters.m_phasefield_refine_threshold << std::endl;
       }
 
