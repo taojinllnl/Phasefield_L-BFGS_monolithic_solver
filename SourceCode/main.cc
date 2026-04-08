@@ -25,15 +25,18 @@
  */
 
 /* A monolithic scheme based on the L-BFGS method to solve the phase-field crack problem
- * 1. The phase-field formulation itself is based on "A phase field model for rate-independent
+ * 1. The phase-field AT-2 model is based on "A phase field model for rate-independent
  *    crack propagation - Robust algorithmic implementation based on operator splits"
  *    by Christian Miehe , Martina Hofacker, Fabian Welschinger
  * 2. This code implements a monolithic approach. The phase-field irreversibility
  *    is enforced through the history field Phi_0^+ and the viscosity parameter.
  * 3. Using TBB for stiffness assembly and Gauss point calculation.
  * 4. Using adaptive mesh refinement.
- * 5. Add the At-1 phase-field model (Feb. 1st, 2026)
+ * 5. Add the AT-1 phase-field model (Feb. 1st, 2026)
  * 6. Add the Phase-field cohesive zone model (PFCZM) (Feb. 7th 2026)
+ * 7. Add a flag to differentiate between plane stress and plane strain
+ *    case in 2D (Feb. 26th, 2026)
+ * 8. Add the AT-1 cohesive phase-field model (April 8th, 2026)
  */
 
 #include <deal.II/grid/tria.h>
@@ -142,7 +145,8 @@ namespace PhaseField
     if (   model_name == "AT2"
 	|| model_name == "AT1")
       value = (1.0 - d) * (1.0 - d);
-    else if (model_name == "PFCZM")
+    else if (   model_name == "PFCZM"
+	     || model_name == "AT1-Cohesive")
       {
 	const double f1 = std::pow(std::abs(1-d), p);
 	const double f2 = f1 + a1*d + a1*a2*d*d + a1*a3*d*d*d;
@@ -167,7 +171,8 @@ namespace PhaseField
     if (   model_name == "AT2"
     	|| model_name == "AT1")
       value = 2.0 * (d - 1.0);
-    else if (model_name == "PFCZM")
+    else if (   model_name == "PFCZM"
+	     || model_name == "AT1-Cohesive")
       {
 	const double f1 = std::pow(std::abs(1-d), p);
         const double f2 = f1 + a1*d + a1*a2*d*d + a1*a3*d*d*d;
@@ -194,7 +199,8 @@ namespace PhaseField
     if (   model_name == "AT2"
     	|| model_name == "AT1")
       value = 2.0;
-    else if (model_name == "PFCZM")
+    else if (   model_name == "PFCZM"
+	     || model_name == "AT1-Cohesive")
       {
 	const double f1 = std::pow(std::abs(1-d), p);
 	const double f2 = f1 + a1*d + a1*a2*d*d + a1*a3*d*d*d;
@@ -221,7 +227,8 @@ namespace PhaseField
     double value = 0.0;
     if (model_name == "AT2")
       value = d * d;
-    else if (model_name == "AT1")
+    else if (   model_name == "AT1"
+	     || model_name == "AT1-Cohesive")
       value = d;
     else if (model_name == "PFCZM")
       value = 2.0 * d - d * d;
@@ -238,7 +245,8 @@ namespace PhaseField
     double value = 0.0;
     if (model_name == "AT2")
       value = 2.0 * d;
-    else if (model_name == "AT1")
+    else if (   model_name == "AT1"
+	     || model_name == "AT1-Cohesive")
       value = 1.0;
     else if (model_name == "PFCZM")
       value = 2.0 * (1-d);
@@ -256,7 +264,8 @@ namespace PhaseField
     double value = 0.0;
     if (model_name == "AT2")
       value = 2.0;
-    else if (model_name == "AT1")
+    else if (   model_name == "AT1"
+	     || model_name == "AT1-Cohesive")
       value = 0.0;
     else if (model_name == "PFCZM")
       value = -2.0;
@@ -272,7 +281,8 @@ namespace PhaseField
     double value = 0.0;
     if (model_name == "AT2")
       value = 2.0;
-    else if (model_name == "AT1")
+    else if (   model_name == "AT1"
+	     || model_name == "AT1-Cohesive")
       value = 8.0/3;
     else if (model_name == "PFCZM")
       value = 4 * std::atan(1);
@@ -332,7 +342,7 @@ namespace PhaseField
 
         prm.declare_entry("Phase-field model type",
                           "AT2",
-                          Patterns::Selection("AT1|AT2|PFCZM"),
+                          Patterns::Selection("AT1|AT1-Cohesive|AT2|PFCZM"),
                           "Type of phase-field model");
 
         prm.declare_entry("Plane stress",
@@ -979,10 +989,27 @@ namespace PhaseField
 		   const std::string & phasefield_name,
 		   const bool plane_stress_flag)
     {
-      const double E0 = lame_mu * (3*lame_lambda + 2*lame_mu) / (lame_lambda + lame_mu);
+      double E0 = lame_mu * (3*lame_lambda + 2*lame_mu) / (lame_lambda + lame_mu);
       const double phasefield_geo_constant = phasefield_coefficient_constant(phasefield_name);
-      const double a1 = 4.0 / (phasefield_geo_constant * length_scale)
-	              * gc * E0 / (tensile_strength * tensile_strength);
+
+      // 2D plane stress case
+      if (    dim == 2
+  	   && plane_stress_flag)
+        {
+          double my_lambda = 2 * lame_mu * lame_lambda / (lame_lambda + 2 * lame_mu);
+          E0 = lame_mu * (3*my_lambda + 2*lame_mu) / (my_lambda + lame_mu);
+        }
+
+      double a1 = 0.0;
+      if (phasefield_name == "PFCZM")
+        a1 = 4.0 / (phasefield_geo_constant * length_scale)
+      	   * gc * E0 / (tensile_strength * tensile_strength);
+      else if (phasefield_name == "AT1-Cohesive")
+	a1 = 2.0 / (phasefield_geo_constant * length_scale)
+   	   * gc * E0 / (tensile_strength * tensile_strength);
+      else
+	a1 = 0.0;
+
 
       m_material =
               std::make_shared<LinearIsotropicElasticityAdditiveSplit<dim>>(lame_lambda,
@@ -1003,12 +1030,13 @@ namespace PhaseField
         m_history_max_positive_strain_energy = 0.0;
       else if (phasefield_name == "AT1")
 	m_history_max_positive_strain_energy = gc/(2*length_scale*phasefield_geo_constant);
-      else if (phasefield_name == "PFCZM")
+      else if (   phasefield_name == "PFCZM"
+	       || phasefield_name == "AT1-Cohesive")
 	m_history_max_positive_strain_energy = tensile_strength
 	                                     * tensile_strength / (2 * E0);
       else
-	Assert(false,
-	       ExcMessage("The phase-field geometric function has not been implemented!"));
+	AssertThrow(false,
+	            ExcMessage("The phase-field geometric function has not been implemented!"));
 
       m_length_scale = length_scale;
       m_gc = gc;
@@ -1439,7 +1467,7 @@ namespace PhaseField
             Assert( (poisson_ratio <= 0.5)&(poisson_ratio >=-1.0) , ExcInternalError());
 
             const double c_alpha = phasefield_coefficient_constant(m_parameters.m_phasefield_name);
-	    const double E0 = lame_mu * (3*lame_lambda + 2*lame_mu) / (lame_lambda + lame_mu);
+	    double E0 = lame_mu * (3*lame_lambda + 2*lame_mu) / (lame_lambda + lame_mu);
 
             m_logfile << "\tRegion " << material_region << " : " << std::endl;
             m_logfile << "\t\tLame lambda = " << lame_lambda << std::endl;
@@ -1451,33 +1479,86 @@ namespace PhaseField
             m_logfile << "\t\tViscosity for regularization (eta) = "  << viscosity << std::endl;
             m_logfile << "\t\tResidual_k (k) = "  << residual_k << std::endl;
             m_logfile << "\t\tTensile strength (ft) = "  << tensile_strength << std::endl;
-            m_logfile << "\t\tp = "  << p << std::endl;
-            m_logfile << "\t\ta2 = "  << a2 << std::endl;
-            m_logfile << "\t\ta3 = "  << a3 << std::endl;
+            m_logfile << "\t\tp (the polynomial order of the term (1-d)^p\n"
+                         "\t\t\tin the degradation function) = "
+        	      << p << std::endl;
+            m_logfile << "\t\ta2 (the coefficient of the a1*a2*d^2 term\n"
+                         "\t\t\tin the denominator of the degradation function) = "
+        	      << a2 << std::endl;
+            m_logfile << "\t\ta3 (the coefficient of the a1*a3*d^3 term\n"
+                         "\t\t\tin the denominator of the degradation function) = "
+        	      << a3 << std::endl;
 
-            if (m_parameters.m_phasefield_name == "AT2")
-              m_logfile << "\t\tFor AT-2 model, tensile-strength (ft), p, a2, and a3 are irrelevant."
-	                << std::endl;
-
-            if (m_parameters.m_phasefield_name == "AT1")
+            // 2D plane stress case
+            if (    dim == 2
+        	 && m_parameters.m_plane_stress)
               {
-        	const double proper_l = gc * E0 / (c_alpha * tensile_strength * tensile_strength);
-        	const double proper_ft = std::sqrt( gc * E0 / (c_alpha * length_scale) );
-
-        	m_logfile << "\t\tFor AT-1 model, the provided tensile strength (ft) = "
-        	          << tensile_strength << std::endl;
-                m_logfile << "\t\tHowever, based on the formular ft = sqrt[gc*E0/(c_alpha*l)]," << std::endl;
-        	m_logfile << "\t\tthe actual material tensile strength should be "
-                          << proper_ft << std::endl;
-                m_logfile << "\t\tOr in order to use the provided strength (" << tensile_strength << "),"
-                          << std::endl;
-                m_logfile << "\t\tthe actual length-scale l should be "
-                          << proper_l << std::endl;
-                m_logfile << "\t\tFor AT-1 model, p, a2, and a3 are irrelevant."
-                	  << std::endl;
+                double my_lambda = 2 * lame_mu * lame_lambda / (lame_lambda + 2 * lame_mu);
+                E0 = lame_mu * (3*my_lambda + 2*lame_mu) / (my_lambda + lame_mu);
               }
 
-            if (m_parameters.m_phasefield_name == "PFCZM")
+            if (m_parameters.m_phasefield_name == "AT2")
+              {
+        	m_logfile << "\t\tFor AT-2 model, tensile-strength (ft), p, a2, and a3 are irrelevant."
+        		  << std::endl;
+              }
+            else if (m_parameters.m_phasefield_name == "AT1")
+              {
+		const double proper_l = gc * E0 / (c_alpha * tensile_strength * tensile_strength);
+		const double proper_ft = std::sqrt( gc * E0 / (c_alpha * length_scale) );
+		m_logfile << "\t\tFor AT-1 (Griffith) model, the provided tensile strength (ft) = "
+			  << tensile_strength << std::endl;
+		m_logfile << "\t\tHowever, based on the formular ft = sqrt[gc*E0/(c_alpha*l)]," << std::endl;
+		m_logfile << "\t\tthe actual material tensile strength should be "
+			  << proper_ft << std::endl;
+		m_logfile << "\t\tOr in order to use the provided strength (" << tensile_strength << "),"
+			  << std::endl;
+		m_logfile << "\t\tthe actual length-scale l should be "
+			  << proper_l << std::endl;
+		m_logfile << "\t\tFor AT-1 (Griffith) model, since the standard quadratic\n"
+			     "\t\tdegradation funciton is used, p, a2, and a3 are irrelevant."
+			  << std::endl;
+              }
+            else if (m_parameters.m_phasefield_name == "AT1-Cohesive")
+              {
+        	if ( std::fabs(p-1) < 1.0e-9 )
+        	  {
+        	    m_logfile << "\t\tFor AT-1 (cohesive) model, quasi-linear degradation is adopted:\n"
+		                 "\t\t\t g(d) = (1-d)/(1-d + a1*d)"
+		              << std::endl;
+        	    AssertThrow((a2 == 0) && (a3 == 0),
+        	            	ExcMessage("For AT-1 quasi-linear cohesive model, "
+        	            	           "a2 = a3 = 0"));
+        	    double upper_l = 3.0*gc*E0 / (4.0*tensile_strength*tensile_strength);
+        	    m_logfile << "\t\tThe provided length-scale l (" << length_scale
+        	              << ") should be smaller than the upper limit "
+        	              << upper_l << std::endl;
+        	    AssertThrow(length_scale < upper_l,
+        	    	        ExcMessage("The provided length-scale is over the "
+        	    		           "upper limit!"));
+        	  }
+        	else if ( std::fabs(p-2) < 1.0e-9 )
+        	  {
+        	    m_logfile << "\t\tFor AT-1 (cohesive) model, quasi-quadratic degradation is adopted:\n"
+        	    		 "\t\t\t g(d) = (1-d)^2/[(1-d)^2 + a1*d + a1*a2*d^2]"
+        	              << std::endl;
+        	    AssertThrow((a2 >= 1) && (a3 == 0),
+        	            	ExcMessage("For AT-1 quasi-quadratic cohesive model, "
+        	            	"a2 >=1 and a3 = 0"));
+        	    double upper_l = 3.0*gc*E0 / (4.0*(a2+2)*tensile_strength*tensile_strength);
+        	    m_logfile << "\t\tThe provided length-scale l (" << length_scale
+        	              << ") should be smaller than the upper limit "
+        	              << upper_l << std::endl;
+        	    AssertThrow(length_scale < upper_l,
+        	            	ExcMessage("The provided length-scale is over the "
+        	            	           "upper limit!"));
+        	  }
+        	else
+        	  AssertThrow(false,
+        	  	      ExcMessage("For AT-1 cohesive model, "
+        	  		         "p = 1 (quasi-linear) or 2 (quasi-quadratic)"));
+              }
+            else if (m_parameters.m_phasefield_name == "PFCZM")
               {
         	double lch = gc * E0 / (tensile_strength*tensile_strength);
         	double coeff = 4.0 / (c_alpha * (a2 + p + 0.5));
@@ -1494,14 +1575,11 @@ namespace PhaseField
         	AssertThrow(length_scale < upper_l,
 			    ExcMessage("The provided length-scale is over the "
 				       "upper limit!"));
-
-        	m_logfile << "\t\tSuggested parameters:" << std::endl;
-        	m_logfile << "\t\t\tLinear softening curve: "
-        	          << "p = 2.0, a2 = -0.5, a3 = 0;" << std::endl;
-        	m_logfile << "\t\t\tExponential softening curve: "
-        	          << "p = 2.5, a2 = 0.1748, a3 = 0;" << std::endl;
-        	m_logfile << "\t\t\tCornelissen softening curve: "
-        	          << "p = 2.0, a2 = 1.3868, a3 = 0.9106 or 0.6566;" << std::endl;
+              }
+            else
+              {
+        	AssertThrow(false,
+  	                    ExcMessage("Chosen phase-field model not implemented!"));
               }
           }
 
@@ -6091,6 +6169,46 @@ namespace PhaseField
     m_logfile << "Write iteration history to log file? = " << std::boolalpha
 	      << m_parameters.m_output_iteration_history << std::endl;
     m_logfile << "Phase-field model type = " << m_parameters.m_phasefield_name << std::endl;
+
+    if (m_parameters.m_phasefield_name == "AT2")
+      {
+	m_logfile << "\tPhase-field geometric function alpha(d) = d^2" << std::endl;
+	m_logfile << "\tPhase-field degradation function g(d) = (1-d)^2" << std::endl;
+      }
+    else if (m_parameters.m_phasefield_name == "AT1")
+      {
+	m_logfile << "\tPhase-field geometric function alpha(d) = d" << std::endl;
+	m_logfile << "\tPhase-field degradation function g(d) = (1-d)^2" << std::endl;
+      }
+    else if (m_parameters.m_phasefield_name == "AT1-Cohesive")
+      {
+	m_logfile << "\tPhase-field geometric function alpha(d) = d" << std::endl;
+	m_logfile << "\tPhase-field degradation function g(d) ="
+	             " (1-d)^p / [(1-d)^p + a1*d + a1*a2*d^2 + a1*a3*d^3]" << std::endl;
+	m_logfile << "\t\tFor quasi-linear degradation function: p = 1, a2 = 0, a3 = 0;"
+	          << std::endl;
+	m_logfile << "\t\tFor quasi-quadratic degradation function: p = 2, a2 >= 1, a3 = 0;"
+		  << std::endl;
+      }
+    else if (m_parameters.m_phasefield_name == "PFCZM")
+      {
+	m_logfile << "\tPhase-field geometric function alpha(d) = 2*d -d^2" << std::endl;
+	m_logfile << "\tPhase-field degradation function g(d) ="
+	             " (1-d)^p / [(1-d)^p + a1*d + a1*a2*d^2 + a1*a3*d^3]" << std::endl;
+	m_logfile << "\t\tSuggested parameters:" << std::endl;
+	m_logfile << "\t\t\tLinear softening curve: "
+	          << "p = 2.0, a2 = -0.5, a3 = 0;" << std::endl;
+        m_logfile << "\t\t\tExponential softening curve: "
+	          << "p = 2.5, a2 = 0.1748, a3 = 0;" << std::endl;
+	m_logfile << "\t\t\tCornelissen softening curve: "
+	          << "p = 2.0, a2 = 1.3868, a3 = 0.9106 or 0.6566;" << std::endl;
+      }
+    else
+      {
+	AssertThrow(false,
+		    ExcMessage("Chosen phase-field model not implemented!"));
+      }
+
     if (dim == 2)
       {
 	if (m_parameters.m_plane_stress)
