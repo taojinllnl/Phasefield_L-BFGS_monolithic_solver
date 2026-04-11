@@ -4563,8 +4563,8 @@ namespace PhaseField
         delta_alpha_old = delta_alpha_new;
       }
 
-    //if (alpha < 1.0e-3)
-    //  alpha = 1.0;
+    if (alpha < 1.0e-3)
+      alpha = 1.0;
 
     num_ls = i;
     return alpha;
