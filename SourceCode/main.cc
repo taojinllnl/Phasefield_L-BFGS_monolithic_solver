@@ -989,16 +989,10 @@ namespace PhaseField
 		   const std::string & phasefield_name,
 		   const bool plane_stress_flag)
     {
-      double E0 = lame_mu * (3*lame_lambda + 2*lame_mu) / (lame_lambda + lame_mu);
+      // For the equivalent of 1D strain energy at fracture ft^2/(2E)
+      // the Young's modulus E is for 3D case
+      const double E0 = lame_mu * (3*lame_lambda + 2*lame_mu) / (lame_lambda + lame_mu);
       const double phasefield_geo_constant = phasefield_coefficient_constant(phasefield_name);
-
-      // 2D plane stress case
-      if (    dim == 2
-  	   && plane_stress_flag)
-        {
-          double my_lambda = 2 * lame_mu * lame_lambda / (lame_lambda + 2 * lame_mu);
-          E0 = lame_mu * (3*my_lambda + 2*lame_mu) / (my_lambda + lame_mu);
-        }
 
       double a1 = 0.0;
       if (phasefield_name == "PFCZM")
@@ -1280,6 +1274,7 @@ namespace PhaseField
     void make_grid_case_9();
     void make_grid_case_11();
     void make_grid_case_12();
+    void make_grid_case_13();
 
     void setup_system();
 
@@ -1467,7 +1462,7 @@ namespace PhaseField
             Assert( (poisson_ratio <= 0.5)&(poisson_ratio >=-1.0) , ExcInternalError());
 
             const double c_alpha = phasefield_coefficient_constant(m_parameters.m_phasefield_name);
-	    double E0 = lame_mu * (3*lame_lambda + 2*lame_mu) / (lame_lambda + lame_mu);
+	    const double E0 = lame_mu * (3*lame_lambda + 2*lame_mu) / (lame_lambda + lame_mu);
 
             m_logfile << "\tRegion " << material_region << " : " << std::endl;
             m_logfile << "\t\tLame lambda = " << lame_lambda << std::endl;
@@ -1488,14 +1483,6 @@ namespace PhaseField
             m_logfile << "\t\ta3 (the coefficient of the a1*a3*d^3 term\n"
                          "\t\t\tin the denominator of the degradation function) = "
         	      << a3 << std::endl;
-
-            // 2D plane stress case
-            if (    dim == 2
-        	 && m_parameters.m_plane_stress)
-              {
-                double my_lambda = 2 * lame_mu * lame_lambda / (lame_lambda + 2 * lame_mu);
-                E0 = lame_mu * (3*my_lambda + 2*lame_mu) / (my_lambda + lame_mu);
-              }
 
             if (m_parameters.m_phasefield_name == "AT2")
               {
@@ -2121,6 +2108,8 @@ namespace PhaseField
       make_grid_case_11();
     else if (m_parameters.m_scenario == 12)
       make_grid_case_12();
+    else if (m_parameters.m_scenario == 13)
+      make_grid_case_13();
     else
       Assert(false, ExcMessage("The scenario has not been implemented!"));
 
@@ -3234,7 +3223,53 @@ namespace PhaseField
     for (unsigned int i = 0; i < 80; ++i)
       m_logfile << "*";
     m_logfile << std::endl;
-    m_logfile << "\t\t\t1-D bar (structured)" << std::endl;
+    m_logfile << "\t\t\t1-D bar (transversely stress free)" << std::endl;
+    for (unsigned int i = 0; i < 80; ++i)
+      m_logfile << "*";
+    m_logfile << std::endl;
+
+    AssertThrow(dim==2, ExcMessage("The dimension has to be 2D!"));
+
+    double const length = 200.0;
+    double const width = 1.0;
+    double const h_size = 0.1;
+
+    std::vector<unsigned int> repetitions(dim, 1);
+    repetitions[0] = length / h_size;
+    repetitions[1] = width  / h_size;
+
+    GridGenerator::subdivided_hyper_rectangle(m_triangulation,
+				     	      repetitions,
+					      Point<dim>( 0.0,      0.0 ),
+					      Point<dim>( length,   width ) );
+
+    for (const auto &cell : m_triangulation.active_cell_iterators())
+      for (const auto &face : cell->face_iterators())
+	{
+	  if (face->at_boundary() == true)
+	    {
+	      if ( (std::fabs(face->center()[0] - 0.0 ) < 1.0e-9) )
+		face->set_boundary_id(0);
+	      else if ( (std::fabs(face->center()[0] - length ) < 1.0e-9) )
+		face->set_boundary_id(1);
+	      else if ( (std::fabs(face->center()[1] - 0.0 ) < 1.0e-9) )
+		face->set_boundary_id(2);
+	      else if ( (std::fabs(face->center()[1] - width ) < 1.0e-9) )
+		face->set_boundary_id(3);
+	      else
+		face->set_boundary_id(4);
+	    }
+	}
+  }
+
+
+  template <int dim>
+  void PhaseFieldMonolithicSolve<dim>::make_grid_case_13()
+  {
+    for (unsigned int i = 0; i < 80; ++i)
+      m_logfile << "*";
+    m_logfile << std::endl;
+    m_logfile << "\t\t\t1-D bar (transversely strain free)" << std::endl;
     for (unsigned int i = 0; i < 80; ++i)
       m_logfile << "*";
     m_logfile << std::endl;
@@ -3606,6 +3641,64 @@ namespace PhaseField
 	      }
 	  }
 	else if (m_parameters.m_scenario == 12)
+	  {
+	    // Dirichlet B.C. left surface (x = 0)
+	    const int boundary_id_left_surface = 0;
+	    VectorTools::interpolate_boundary_values(m_dof_handler,
+						     boundary_id_left_surface,
+						     Functions::ZeroFunction<dim>(m_n_components),
+						     m_constraints,
+						     m_fe.component_mask(x_displacement));
+	    VectorTools::interpolate_boundary_values(m_dof_handler,
+						     boundary_id_left_surface,
+						     Functions::ZeroFunction<dim>(m_n_components),
+						     m_constraints,
+						     m_fe.component_mask(phasefield));
+
+	    const int boundary_id_right_surface = 1;
+	    VectorTools::interpolate_boundary_values(m_dof_handler,
+						     boundary_id_right_surface,
+						     Functions::ZeroFunction<dim>(m_n_components),
+						     m_constraints,
+						     m_fe.component_mask(phasefield));
+
+	    const double time_inc = m_time.get_delta_t();
+	    double disp_magnitude = m_time.get_magnitude();
+	    VectorTools::interpolate_boundary_values(m_dof_handler,
+						     boundary_id_right_surface,
+						     Functions::ConstantFunction<dim>(
+						       disp_magnitude*time_inc, m_n_components),
+						     m_constraints,
+						     m_fe.component_mask(x_displacement));
+
+	    typename Triangulation<dim>::active_vertex_iterator vertex_itr;
+	    vertex_itr = m_triangulation.begin_active_vertex();
+	    std::vector<types::global_dof_index> node_leftbottom(m_fe.dofs_per_vertex);
+	    std::vector<types::global_dof_index> node_rightbottom(m_fe.dofs_per_vertex);
+
+	    for (; vertex_itr != m_triangulation.end_vertex(); ++vertex_itr)
+	      {
+		if (   (std::fabs(vertex_itr->vertex()[0] - 0.0) < 1.0e-9)
+		    && (std::fabs(vertex_itr->vertex()[1] - 0.0) < 1.0e-9) )
+		  {
+		    node_leftbottom = usr_utilities::get_vertex_dofs(vertex_itr, m_dof_handler);
+		  }
+		if (   (std::fabs(vertex_itr->vertex()[0] - 200.0) < 1.0e-9)
+		    && (std::fabs(vertex_itr->vertex()[1] - 0.0) < 1.0e-9) )
+		  {
+		    node_rightbottom = usr_utilities::get_vertex_dofs(vertex_itr, m_dof_handler);
+		  }
+	      }
+	    m_constraints.add_line(node_leftbottom[0]);
+	    m_constraints.set_inhomogeneity(node_leftbottom[0], 0.0);
+
+	    m_constraints.add_line(node_leftbottom[1]);
+	    m_constraints.set_inhomogeneity(node_leftbottom[1], 0.0);
+
+	    m_constraints.add_line(node_rightbottom[1]);
+	    m_constraints.set_inhomogeneity(node_rightbottom[1], 0.0);
+	  }
+	else if (m_parameters.m_scenario == 13)
 	  {
 	    // Dirichlet B.C. left surface (x = 0)
 	    const int boundary_id_left_surface = 0;
