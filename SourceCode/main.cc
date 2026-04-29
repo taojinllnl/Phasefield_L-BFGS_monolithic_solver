@@ -5053,6 +5053,9 @@ namespace PhaseField
     if (m_parameters.m_output_iteration_history)
       print_conv_header_newton();
 
+    // It is IMPORTANT that newton_iteration starts at 0 (not 1), since
+    // it has an implication on the boundary conditions.
+    // See make_constraints() for details.
     unsigned int newton_iteration = 0;
     for (; newton_iteration < m_parameters.m_max_iterations_NR; ++newton_iteration)
       {
@@ -5184,8 +5187,6 @@ namespace PhaseField
 
     print_conv_header_BFGS();
 
-    unsigned int BFGS_iteration = 0;
-
     // Initial guess B_0, which is a full matrix and takes a lot of memory
     FullMatrix<double> BFGS_matrix = IdentityMatrix(m_dof_handler.n_dofs());
     Vector<double> BFGS_r_vector(m_dof_handler.n_dofs());
@@ -5199,6 +5200,11 @@ namespace PhaseField
     // we will run out of memory on a laptop workstation
     FullMatrix<double> temp_matrix_1(m_dof_handler.n_dofs());
     FullMatrix<double> temp_matrix_2(m_dof_handler.n_dofs());
+
+    // It is IMPORTANT that BFGS_iteration starts at 0 (not 1), since
+    // it has an implication on the boundary conditions.
+    // See make_constraints() for details.
+    unsigned int BFGS_iteration = 0;
 
     for (; BFGS_iteration < m_parameters.m_max_iterations_BFGS; ++BFGS_iteration)
       {
@@ -5389,8 +5395,6 @@ namespace PhaseField
     if (m_parameters.m_output_iteration_history)
       print_conv_header_LBFGS();
 
-    unsigned int LBFGS_iteration = 0;
-
     BlockVector<double> LBFGS_r_vector(m_dofs_per_block);
     BlockVector<double> LBFGS_y_vector(m_dofs_per_block);
     BlockVector<double> LBFGS_q_vector(m_dofs_per_block);
@@ -5405,6 +5409,11 @@ namespace PhaseField
     double line_search_parameter = 0.0;
     double LBFGS_beta = 0.0;
     double rho = 0.0;
+
+    // It is IMPORTANT that LBFGS_iteration starts at 0 (not 1), since
+    // it has an implication on the boundary conditions.
+    // See make_constraints() for details.
+    unsigned int LBFGS_iteration = 0;
 
     for (; LBFGS_iteration < m_parameters.m_max_iterations_BFGS; ++LBFGS_iteration)
       {
