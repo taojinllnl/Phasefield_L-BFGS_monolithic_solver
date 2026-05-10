@@ -1,8 +1,7 @@
 #include "SpectrumDecomposition.h" // use double quote
-#include <deal.II/base/tensor.h>
-#include <deal.II/base/symmetric_tensor.h>
 #include <deal.II/base/exceptions.h>
-
+#include <deal.II/base/symmetric_tensor.h>
+#include <deal.II/base/tensor.h>
 
 #include <iostream>
 
@@ -16,15 +15,9 @@ namespace usr_spectrum_decomposition
     std::cout << "Hello world!" << std::endl;
   }
 
-  double positive_ramp_function(const double x)
-  {
-    return std::fmax(x, 0.0);
-  }
+  double positive_ramp_function(const double x) { return std::fmax(x, 0.0); }
 
-  double negative_ramp_function(const double x)
-  {
-    return std::fmin(x, 0.0);
-  }
+  double negative_ramp_function(const double x) { return std::fmin(x, 0.0); }
 
   double heaviside_function(const double x)
   {
@@ -36,4 +29,4 @@ namespace usr_spectrum_decomposition
     else
       return 0.0;
   }
-}  
+} // namespace usr_spectrum_decomposition

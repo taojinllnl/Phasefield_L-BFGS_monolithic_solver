@@ -1,14 +1,14 @@
 #ifndef usrcodes_spectrum_decomposition_h
 #define usrcodes_spectrum_decomposition_h
-#include <deal.II/base/tensor.h>
+#include <deal.II/base/patterns.h>
 #include <deal.II/base/symmetric_tensor.h>
-#include <deal.II/lac/vector.h>
+#include <deal.II/base/tensor.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/lapack_full_matrix.h>
-#include <deal.II/base/patterns.h>
+#include <deal.II/lac/vector.h>
+#include <deal.II/physics/elasticity/standard_tensors.h>
 #include <fstream>
 #include <iostream>
-
 
 namespace usr_spectrum_decomposition
 {
@@ -27,55 +27,57 @@ namespace usr_spectrum_decomposition
   // output: eigenvalues  (Vector<double>)
   //         eigenvectors (std::vector<Tensor<1, dim>>)
   template <int dim>
-  void spectrum_decomposition(SymmetricTensor<2, dim> const & symmetric_tensor,
-			      Vector<double> & myEigenvalues,
-			      std::vector<Tensor<1, dim>> & myEigenvectors)
+  void spectrum_decomposition(SymmetricTensor<2, dim> const &symmetric_tensor,
+                              Vector<double> &myEigenvalues,
+                              std::vector<Tensor<1, dim>> &myEigenvectors)
   {
 
-    const std::array< std::pair< double, Tensor< 1, dim > >, dim >
-      myEigenSystem = eigenvectors(symmetric_tensor);
+    const std::array<std::pair<double, Tensor<1, dim>>, dim> myEigenSystem =
+        eigenvectors(symmetric_tensor);
 
     for (int i = 0; i < dim; i++)
-      {
-        myEigenvalues[i] = myEigenSystem[i].first;
-        myEigenvectors[i] = myEigenSystem[i].second;
-      }
+    {
+      myEigenvalues[i] = myEigenSystem[i].first;
+      myEigenvectors[i] = myEigenSystem[i].second;
+    }
   }
 
   template <int dim>
-  SymmetricTensor<2, dim> positive_tensor(Vector<double> const & eigenvalues,
-					  std::vector<Tensor<1, dim>> const & eigenvectors)
+  SymmetricTensor<2, dim>
+  positive_tensor(Vector<double> const &eigenvalues,
+                  std::vector<Tensor<1, dim>> const &eigenvectors)
   {
     SymmetricTensor<2, dim> positive_part_tensor;
     positive_part_tensor = 0;
     for (int i = 0; i < dim; i++)
-      positive_part_tensor += positive_ramp_function(eigenvalues[i])
-                            * symmetrize(outer_product(eigenvectors[i],
-                                                       eigenvectors[i]));
+      positive_part_tensor +=
+          positive_ramp_function(eigenvalues[i]) *
+          symmetrize(outer_product(eigenvectors[i], eigenvectors[i]));
     return positive_part_tensor;
   }
 
   template <int dim>
-  SymmetricTensor<2, dim> negative_tensor(Vector<double> const & eigenvalues,
-					  std::vector<Tensor<1, dim>> const & eigenvectors)
+  SymmetricTensor<2, dim>
+  negative_tensor(Vector<double> const &eigenvalues,
+                  std::vector<Tensor<1, dim>> const &eigenvectors)
   {
     SymmetricTensor<2, dim> negative_part_tensor;
     negative_part_tensor = 0;
     for (int i = 0; i < dim; i++)
-      negative_part_tensor += negative_ramp_function(eigenvalues[i])
-                            * symmetrize(outer_product(eigenvectors[i],
-                                                       eigenvectors[i]));
+      negative_part_tensor +=
+          negative_ramp_function(eigenvalues[i]) *
+          symmetrize(outer_product(eigenvectors[i], eigenvectors[i]));
     return negative_part_tensor;
   }
 
   template <int dim>
-  void positive_negative_projectors(Vector<double> const & eigenvalues,
-                                    std::vector<Tensor<1, dim>> const & eigenvectors,
-			            SymmetricTensor<4, dim> & positive_projector,
-				    SymmetricTensor<4, dim> & negative_projector)
+  void positive_negative_projectors(
+      Vector<double> const &eigenvalues,
+      std::vector<Tensor<1, dim>> const &eigenvectors,
+      SymmetricTensor<4, dim> &positive_projector,
+      SymmetricTensor<4, dim> &negative_projector)
   {
-    Assert(dim <= 3,
-	   ExcMessage("Project tensors only work for dim <= 3."));
+    Assert(dim <= 3, ExcMessage("Project tensors only work for dim <= 3."));
 
     std::array<SymmetricTensor<2, dim>, dim> M;
     for (int a = 0; a < dim; a++)
@@ -88,60 +90,142 @@ namespace usr_spectrum_decomposition
     std::array<std::array<SymmetricTensor<4, dim>, dim>, dim> G;
     for (int a = 0; a < dim; a++)
       for (int b = 0; b < dim; b++)
-	for (int i = 0; i < dim; i++)
-	  for (int j = 0; j < dim; j++)
-	    for (int k = 0; k < dim; k++)
+        for (int i = 0; i < dim; i++)
+          for (int j = 0; j < dim; j++)
+            for (int k = 0; k < dim; k++)
               for (int l = 0; l < dim; l++)
-        	G[a][b][i][j][k][l] = M[a][i][k] * M[b][j][l]
-				    + M[a][i][l] * M[b][j][k];
+                G[a][b][i][j][k][l] =
+                    M[a][i][k] * M[b][j][l] + M[a][i][l] * M[b][j][k];
 
     positive_projector = 0;
     for (int a = 0; a < dim; a++)
+    {
+      double lambda_a = eigenvalues[a];
+      positive_projector += heaviside_function(lambda_a) * Q[a];
+      for (int b = 0; b < dim; b++)
       {
-	double lambda_a = eigenvalues[a];
-	positive_projector += heaviside_function(lambda_a)
-			    * Q[a];
-	for (int b = 0; b < dim; b++)
-	  {
-	    if (b != a)
-	      {
-		double lambda_b = eigenvalues[b];
-		double v_ab = 0.0;
-		if (std::fabs(lambda_a - lambda_b) > 1.0e-12)
-		  v_ab = (positive_ramp_function(lambda_a) - positive_ramp_function(lambda_b))
-		       / (lambda_a - lambda_b);
-		else
-		  v_ab = 0.5 * (  heaviside_function(lambda_a)
-		                + heaviside_function(lambda_b) );
-		positive_projector += 0.5 * v_ab * 0.5 * (G[a][b] + G[b][a]);
-	      }
-	  }
+        if (b != a)
+        {
+          double lambda_b = eigenvalues[b];
+          double v_ab = 0.0;
+          if (std::fabs(lambda_a - lambda_b) > 1.0e-12)
+            v_ab = (positive_ramp_function(lambda_a) -
+                    positive_ramp_function(lambda_b)) /
+                   (lambda_a - lambda_b);
+          else
+            v_ab = 0.5 *
+                   (heaviside_function(lambda_a) + heaviside_function(lambda_b));
+          positive_projector += 0.5 * v_ab * 0.5 * (G[a][b] + G[b][a]);
+        }
       }
+    }
 
     negative_projector = 0;
     for (int a = 0; a < dim; a++)
+    {
+      double lambda_a = eigenvalues[a];
+      negative_projector += heaviside_function(-lambda_a) * Q[a];
+      for (int b = 0; b < dim; b++)
       {
-	double lambda_a = eigenvalues[a];
-	negative_projector += heaviside_function(-lambda_a)
-			    * Q[a];
-	for (int b = 0; b < dim; b++)
-	  {
-	    if (b != a)
-	      {
-		double lambda_b = eigenvalues[b];
-		double v_ab = 0.0;
-		if (std::fabs(lambda_a - lambda_b) > 1.0e-12)
-		  v_ab = (negative_ramp_function(lambda_a) - negative_ramp_function(lambda_b))
-		       / (lambda_a - lambda_b);
-		else
-		  v_ab = 0.5 * (  heaviside_function(-lambda_a)
-		                + heaviside_function(-lambda_b) );
-		negative_projector += 0.5 * v_ab * 0.5 * (G[a][b] + G[b][a]);
-	      }
-	  }
+        if (b != a)
+        {
+          double lambda_b = eigenvalues[b];
+          double v_ab = 0.0;
+          if (std::fabs(lambda_a - lambda_b) > 1.0e-12)
+            v_ab = (negative_ramp_function(lambda_a) -
+                    negative_ramp_function(lambda_b)) /
+                   (lambda_a - lambda_b);
+          else
+            v_ab = 0.5 * (heaviside_function(-lambda_a) +
+                          heaviside_function(-lambda_b));
+          negative_projector += 0.5 * v_ab * 0.5 * (G[a][b] + G[b][a]);
+        }
       }
-
+    }
   }
 
-}
+  template <int dim>
+  double
+  p_trace_strain_positive_p_temperature(SymmetricTensor<2, dim> const &strain_e,
+                                        const double alpha)
+  {
+    double I_1 = trace(strain_e);
+    if (I_1 > 0)
+      return -alpha * trace(Physics::Elasticity::StandardTensors<dim>::I);
+    else
+      return 0.0;
+  }
+
+  template <int dim>
+  double
+  p_trace_strain_negative_p_temperature(SymmetricTensor<2, dim> const &strain_e,
+                                        const double alpha)
+  {
+    double I_1 = trace(strain_e);
+    if (I_1 < 0)
+      return -alpha * trace(Physics::Elasticity::StandardTensors<dim>::I);
+    else
+      return 0.0;
+  }
+
+  template <int dim>
+  double trace_strain_positive(SymmetricTensor<2, dim> const &e_strain)
+  {
+    double I_1 = trace(e_strain);
+    if (I_1 > 0)
+      return I_1;
+    else
+      return 0.0;
+  }
+
+  template <int dim>
+  double trace_strain_negative(SymmetricTensor<2, dim> const &e_strain)
+  {
+    double I_1 = trace(e_strain);
+    if (I_1 < 0)
+      return I_1;
+    else
+      return 0.0;
+  }
+
+  template <int dim>
+  SymmetricTensor<2, dim>
+  p_strain_positive_p_temperature(Vector<double> const &eigenvalues,
+                                  std::vector<Tensor<1, dim>> const &eigenvectors,
+                                  const double alpha)
+  {
+    // partial effective strain positive partial temperature
+    SymmetricTensor<2, dim> strain_positive_temperature;
+    strain_positive_temperature = 0;
+
+    for (int i = 0; i < dim; i++)
+    {
+      if (eigenvalues[i] > 0)
+        strain_positive_temperature -=
+            alpha * symmetrize(outer_product(eigenvectors[i], eigenvectors[i]));
+    }
+
+    return strain_positive_temperature;
+  }
+
+  template <int dim>
+  SymmetricTensor<2, dim>
+  p_strain_negative_p_temperature(Vector<double> const &eigenvalues,
+                                  std::vector<Tensor<1, dim>> const &eigenvectors,
+                                  const double alpha)
+  {
+    // partial effective strain negative partial temperature
+    SymmetricTensor<2, dim> strain_negative_temperature;
+    strain_negative_temperature = 0;
+
+    for (int i = 0; i < dim; i++)
+    {
+      if (eigenvalues[i] < 0)
+        strain_negative_temperature -=
+            alpha * symmetrize(outer_product(eigenvectors[i], eigenvectors[i]));
+    }
+
+    return strain_negative_temperature;
+  }
+} // namespace usr_spectrum_decomposition
 #endif
