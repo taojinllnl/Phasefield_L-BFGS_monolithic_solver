@@ -23,9 +23,9 @@ symbols = ['-k', '--*m', '-.b^', ':gx', '-rD', 'bx']
 fig = plt.figure()
 ax = fig.add_subplot(111)
 
-plt.plot(time1[:25], forceY1[:25], symbols[0],
+plt.plot(time1[:35], forceY1[:35], symbols[0],
          linewidth=2.0, label=labels[0], fillstyle='none', markersize=8)
-plt.plot(time1[25:], forceY1[25:], symbols[1],
+plt.plot(time1[34:], forceY1[34:], symbols[1],
          linewidth=2.0, label=labels[1], fillstyle='none', markersize=8)  
 #plt.plot(time2, forceX2, symbols[1],
 #         linewidth=2.0, label=labels[1], fillstyle='none', markersize=8)   
@@ -48,9 +48,9 @@ plt.savefig("Reaction_force_history_time.eps", bbox_inches='tight', pad_inches=0
 fig = plt.figure()
 ax = fig.add_subplot(111)
 
-plt.plot(time1[:25], forceY1[:25], symbols[0],
+plt.plot(time1[:35], forceY1[:35], symbols[0],
          linewidth=2.0, label=labels[0], fillstyle='none', markersize=8)
-plt.plot(14.0e-3 - time1[25:], forceY1[25:], symbols[1],
+plt.plot(14.0e-3 - time1[34:], forceY1[34:], symbols[1],
          linewidth=2.0, label=labels[1], fillstyle='none', markersize=8)              
 #plt.plot(time2, forceX2, symbols[1],
 #         linewidth=2.0, label=labels[1], fillstyle='none', markersize=8)   
