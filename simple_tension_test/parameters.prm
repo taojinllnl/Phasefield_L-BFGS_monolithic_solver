@@ -24,7 +24,7 @@ subsection Scenario
   # Phase-field model type (AT1 or AT2 or PFCZM)
   set Phase-field model type = PFCZM
   
-  # Nonlinear solver type (Newton or BFGS or LBFGS)
+  # Nonlinear solver type (Newton or BFGS or LBFGS or AT1-Cohesive)
   set Nonlinear solver type = LBFGS
 
   # Line search strategy (GradientBased or StrongWolfe)
@@ -59,7 +59,7 @@ subsection Scenario
   
   # Allowed maximum ratio between mesh size h and phasefield length scale l
   # insdie the crack zone (nodal phasefield value larger than threshold)
-  set Allowed max hl ratio = 0.2
+  set Allowed max hl ratio = 0.5
   
   # Total number of material regions
   set Material regions = 1
@@ -105,21 +105,21 @@ subsection Nonlinear solver
   set Relative residual = no
 
   # Displacement residual tolerance
-  set Tolerance displacement residual       = 1.0e-9
+  set Tolerance displacement residual       = 1.0e-6
 
   # Phasefield residual tolerance
-  set Tolerance phasefield residual         = 1.0e-9
+  set Tolerance phasefield residual         = 1.0e-6
   
   # Displacement increment tolerance
-  set Tolerance displacement increment      = 1.0e-9
+  set Tolerance displacement increment      = 1.0e-6
   
   # Phasefield increment tolerance
-  set Tolerance phasefield increment        = 1.0e-9
+  set Tolerance phasefield increment        = 1.0e-6
 end
 
 subsection Time
   # End time
-  set End time       = 14.0e-3
+  set End time       = 7.0e-3
   
   # Time data groups
   set Time data file = timeDataFile
