@@ -21,10 +21,10 @@ subsection Scenario
   # If it is 2D case, is it plane stress? (yes or no)
   set Plane stress = yes
 
-  # Phase-field model type (AT1 or AT2 or PFCZM)
+  # Phase-field model type (AT1 or AT2 or PFCZM or AT1-Cohesive)
   set Phase-field model type = PFCZM
   
-  # Nonlinear solver type (Newton or BFGS or LBFGS or AT1-Cohesive)
+  # Nonlinear solver type (Newton or BFGS or LBFGS)
   set Nonlinear solver type = LBFGS
 
   # Line search strategy (GradientBased or StrongWolfe)
