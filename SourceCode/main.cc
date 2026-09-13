@@ -1,15 +1,9 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2006 - 2020 by the deal.II authors
+ * Copyright (C) Tao Jin, PhD
+ *               University of Ottawa, Ottawa, Ontario, Canada
  *
- * This file is part of the deal.II library.
- *
- * The deal.II library is free software; you can use it, redistribute
- * it, and/or modify it under the terms of the GNU Lesser General
- * Public License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- * The full text of the license can be found in the file LICENSE.md at
- * the top level directory of deal.II.
+ * Email: tao.jin@uottawa.ca
  *
  * ---------------------------------------------------------------------
 
@@ -20,20 +14,18 @@
  *
  * How to cite:
  *         Jin T, Li Z, Chen K. A novel phase-field monolithic scheme for
- brittle crack
- *         propagation based on the limited-memory BFGS method with adaptive
- mesh refinement.
+ *         brittle crack propagation based on the limited-memory BFGS method
+ *         with adaptive mesh refinement.
  *         Int J Numer Methods Eng. 2024;e7572. doi: 10.1002/nme.7572
  */
 
 /* A monolithic scheme based on the L-BFGS method to solve the phase-field crack
  * problem
- * 1. The phase-field AT-2 model is based on "A phase field model for
- * rate-independent crack propagation - Robust algorithmic implementation based
- * on operator splits" by Christian Miehe , Martina Hofacker, Fabian Welschinger
+ * 1. Various phase-field models, including the AT-1, AT-2, AT-1 cohesive, and
+ *    phase-field regularized cohesive-zone model (PF-CZM), are provided.
  * 2. This code implements a monolithic approach. The phase-field
- * irreversibility is enforced through the history field Phi_0^+ and the
- * viscosity parameter.
+ *    irreversibility is enforced through the history field Phi_0^+ and the
+ *    viscosity parameter.
  * 3. Using TBB for stiffness assembly and Gauss point calculation.
  * 4. Using adaptive mesh refinement.
  * 5. Add the AT-1 phase-field model (Feb. 1st, 2026)
