@@ -1,6 +1,9 @@
 ## Phasefield L-BFGS monolithic solver
 A monolithic solver based on the limited-memory BFGS (L-BFGS) method for phase-field fracture simulations.
 
+For the parallelized version of this algorithm, please see the following repository:
+https://github.com/taojinllnl/Phasefield_L-BFGS_monolithic_solver_mpi
+
 ### Purpose
 This repository provides the source code and the input files for the numerical examples used in the paper titled “A novel phase-field monolithic scheme for brittle crack propagation based on the limited-memory BFGS method with adaptive mesh refinement”. The L-BFGS monolithic solver has the following features:
 1. It uses the limited-memory BFGS (L-BFGS) method to overcome the non-convexity of the total energy functional of the phase-field fracture formulation.
